@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'motion/react';
 const FORMSPREE_ENDPOINT = 'https://formspree.io/f/mwvngrkl';
 
 // 👇 Replace with your reCAPTCHA v3 site key from https://www.google.com/recaptcha/admin
-const RECAPTCHA_SITE_KEY = 'YOUR_RECAPTCHA_V3_SITE_KEY';
+const RECAPTCHA_SITE_KEY = '6Le0d38sAAAAAHby4QogUejbyST49W-AMSiBusxG';
 
 declare global {
   interface Window {
