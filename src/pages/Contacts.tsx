@@ -4,8 +4,6 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 
 const FORMSPREE_ENDPOINT = 'https://formspree.io/f/mwvngrkl';
-
-// 👇 Replace with your reCAPTCHA v3 site key from https://www.google.com/recaptcha/admin
 const RECAPTCHA_SITE_KEY = '6Le0d38sAAAAAHby4QogUejbyST49W-AMSiBusxG';
 
 declare global {
@@ -46,6 +44,22 @@ const SOCIAL_LINKS = [
 ];
 
 type FormStatus = 'idle' | 'loading' | 'success' | 'error';
+
+/* ─── Hide/show reCAPTCHA badge based on current page ─── */
+function useRecaptchaBadgeVisibility() {
+  useEffect(() => {
+    // Hide badge — allowed by Google as long as Privacy/Terms links are shown
+    const style = document.createElement('style');
+    style.id = 'recaptcha-badge-hide';
+    style.textContent = '.grecaptcha-badge { visibility: hidden !important; opacity: 0 !important; }';
+    document.head.appendChild(style);
+
+    return () => {
+      // Clean up when leaving contacts page
+      document.getElementById('recaptcha-badge-hide')?.remove();
+    };
+  }, []);
+}
 
 /* ─── Load reCAPTCHA v3 script ─── */
 function useRecaptchaV3() {
@@ -141,16 +155,18 @@ function Field({
 export function Contacts() {
   const [status, setStatus] = useState<FormStatus>('idle');
   const { getToken } = useRecaptchaV3();
+  useRecaptchaBadgeVisibility();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setStatus('loading');
 
+    // ✅ Capture form ref BEFORE any await — fixes the stale currentTarget bug
+    const form = e.currentTarget;
+
     try {
-      // Get v3 token invisibly — no user interaction needed
       const token = await getToken('contact_form');
 
-      const form = e.currentTarget;
       const data = new FormData(form);
       data.append('g-recaptcha-response', token);
 
@@ -309,7 +325,7 @@ export function Contacts() {
                     )}
                   </button>
 
-                  {/* Required reCAPTCHA v3 branding */}
+                  {/* Required reCAPTCHA v3 branding — replaces the badge */}
                   <p className="text-center text-[10px] text-accents-4">
                     Protected by reCAPTCHA —{' '}
                     <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:text-accents-5">Privacy</a>
