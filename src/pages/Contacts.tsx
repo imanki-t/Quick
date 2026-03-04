@@ -1,11 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Github, Mail, ArrowLeft, Send, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 
-/* ─── IMPORTANT: Replace with your own Formspree form ID ─── */
-/* Go to https://formspree.io, create a free account, make a form, get your ID */
 const FORMSPREE_ENDPOINT = 'https://formspree.io/f/mwvngrkl';
+
+// 👇 Replace with your actual reCAPTCHA v2 site key from https://www.google.com/recaptcha/admin
+const RECAPTCHA_SITE_KEY = 'YOUR_RECAPTCHA_SITE_KEY';
+
+declare global {
+  interface Window {
+    grecaptcha: any;
+  }
+}
 
 const RedditIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 24 24" className={className} fill="currentColor">
@@ -96,29 +103,87 @@ function Field({
   );
 }
 
+/* ─── reCAPTCHA widget ─── */
+function RecaptchaWidget({ onVerify }: { onVerify: (token: string | null) => void }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const widgetIdRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    // Load reCAPTCHA script if not already loaded
+    if (!document.getElementById('recaptcha-script')) {
+      const script = document.createElement('script');
+      script.id = 'recaptcha-script';
+      script.src = 'https://www.google.com/recaptcha/api.js?render=explicit';
+      script.async = true;
+      script.defer = true;
+      document.head.appendChild(script);
+    }
+
+    // Poll until grecaptcha is ready, then render
+    const interval = setInterval(() => {
+      if (window.grecaptcha?.render && containerRef.current && widgetIdRef.current === null) {
+        clearInterval(interval);
+        widgetIdRef.current = window.grecaptcha.render(containerRef.current, {
+          sitekey: RECAPTCHA_SITE_KEY,
+          theme: document.documentElement.classList.contains('dark') ? 'dark' : 'light',
+          callback: (token: string) => onVerify(token),
+          'expired-callback': () => onVerify(null),
+          'error-callback': () => onVerify(null),
+        });
+      }
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="flex justify-center py-1">
+      <div ref={containerRef} />
+    </div>
+  );
+}
+
 export function Contacts() {
   const [status, setStatus] = useState<FormStatus>('idle');
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaError, setCaptchaError] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
+    if (!captchaToken) {
+      setCaptchaError(true);
+      return;
+    }
+
+    setCaptchaError(false);
     setStatus('loading');
+
     try {
       const form = e.currentTarget;
       const data = new FormData(form);
+      data.append('g-recaptcha-response', captchaToken);
+
       const res = await fetch(FORMSPREE_ENDPOINT, {
         method: 'POST',
         body: data,
         headers: { Accept: 'application/json' },
       });
+
       if (res.ok) {
         setStatus('success');
         form.reset();
+        setCaptchaToken(null);
+        if (window.grecaptcha) window.grecaptcha.reset();
       } else {
+        const body = await res.json();
+        console.error('Formspree error:', res.status, body);
         setStatus('error');
       }
     } catch {
       setStatus('error');
     }
+
     setTimeout(() => setStatus('idle'), 5000);
   };
 
@@ -229,6 +294,16 @@ export function Contacts() {
 
                   {/* Hidden honeypot for spam */}
                   <input type="text" name="_gotcha" className="hidden" />
+
+                  {/* reCAPTCHA widget */}
+                  <RecaptchaWidget onVerify={setCaptchaToken} />
+
+                  {captchaError && (
+                    <div className="flex items-center gap-2 rounded-lg border border-yellow-500/20 bg-yellow-500/10 px-3 py-2">
+                      <AlertCircle className="h-4 w-4 text-yellow-400 shrink-0" />
+                      <p className="text-xs text-yellow-400">Please complete the CAPTCHA before sending.</p>
+                    </div>
+                  )}
 
                   {status === 'error' && (
                     <div className="flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2">
