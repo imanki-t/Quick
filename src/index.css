@@ -71,6 +71,41 @@
 }
 
 /* =====================================================
+   RECAPTCHA — permanently hidden, always
+   (Google allows this as long as Privacy/Terms links
+    are shown in the form, which they are)
+   ===================================================== */
+.grecaptcha-badge {
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+  position: absolute !important;
+}
+
+/* =====================================================
+   README / PROSE IMAGE SAFETY
+   Prevents images from overflowing their container
+   ===================================================== */
+.prose img {
+  max-width: 100% !important;
+  height: auto !important;
+  display: block;
+  border-radius: 0.75rem;
+  border: 1px solid var(--accents-2);
+}
+
+/* Wide banner images (e.g. repo hero banners) */
+.prose img[width],
+.prose img[style*="width"] {
+  max-width: 100% !important;
+  width: 100% !important;
+  height: auto !important;
+}
+
+/* =====================================================
    RGB / GRADIENT TEXT ANIMATIONS
    ===================================================== */
 
