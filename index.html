@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Q Witty | Developer Portfolio</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 100 100' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M 30 25 H 60 A 25 25 0 1 1 35 50' stroke='%23536387' stroke-width='10' stroke-linecap='round' stroke-linejoin='round' /%3E%3Cpath d='M 20 38 H 40' stroke='%23536387' stroke-width='10' stroke-linecap='round' /%3E%3Cpath d='M 30 51 H 40' stroke='%23536387' stroke-width='10' stroke-linecap='round' /%3E%3Ccircle cx='60' cy='50' r='16' fill='%23EBF0F9' /%3E%3Cpath d='M 60 39 L 69.5 44.5 V 55.5 L 60 61 L 50.5 55.5 V 44.5 Z' fill='%23B8C2D4' /%3E%3Ccircle cx='8' cy='38' r='4' fill='%238DA0E2' stroke='%23536387' stroke-width='3' /%3E%3C/svg%3E" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script>
+      (function() {
+        function updateTheme() {
+          if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        }
+        updateTheme();
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateTheme);
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
