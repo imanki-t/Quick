@@ -263,7 +263,10 @@ function ContributionHeatmap() {
       {tooltip && (
         <div
           className="fixed z-50 pointer-events-none rounded-md border border-accents-2 bg-accents-8 px-2.5 py-1 text-xs font-medium text-background shadow-lg"
-          style={{ left: tooltip.x + 12, top: tooltip.y - 32 }}
+          style={{
+  left: Math.min(tooltip.x + 12, window.innerWidth - 160),
+  top: tooltip.y - 32,
+}}
         >
           {tooltip.text}
         </div>
