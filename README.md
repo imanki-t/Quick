@@ -151,18 +151,18 @@ For Vercel, just connect your repo — it auto-detects Vite and deploys on every
 
 Most content lives in a single config file. Update your name, bio, socials, and nav links there — the rest of the portfolio pulls from it automatically.
 
-> Full customization guide coming soon in the [Wiki](https://github.com/yourusername/quick/wiki).
+> Full customization guide coming soon in the [Wiki].
 
 ---
 
 ## ✦ License
 
-MIT © [unmuted](https://github.com/yourusername) — do whatever you want with it, just don't claim you built it from scratch. 😄
+MIT © [unmuted](https://github.com/imanki-t) — do whatever you want with it, just don't claim you built it from scratch. 😄
 
 ---
 
 <div align="center">
 
-Made with ♥ and too much coffee · [⭐ Star this repo](https://github.com/yourusername/quick) if it helped you
+Made with ♥ and too much coffee · [⭐ Star this repo](https://github.com/imanki-t/Quick) if it helped you
 
 </div>
