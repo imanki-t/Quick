@@ -74,7 +74,7 @@ export function Header({ onCommandOpen }: HeaderProps) {
             className="group hidden sm:flex items-center gap-2 rounded-lg border border-accents-2 bg-accents-1/50 px-3 py-1.5 text-xs font-medium text-accents-5 transition-all hover:border-accents-4 hover:bg-accents-1 hover:text-foreground"
           >
             <Search className="h-3.5 w-3.5" />
-            <span className="text-xs">Search...</span>
+            <span className="text-xs">Search</span>
             <span className="ml-1 flex items-center gap-0.5 rounded border border-accents-2 bg-background px-1.5 py-0.5 text-[10px] font-mono text-accents-4 group-hover:border-accents-4">
               <Command className="h-2.5 w-2.5" />K
             </span>
