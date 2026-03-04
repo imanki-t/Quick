@@ -185,7 +185,7 @@ export function Projects() {
             ref={searchRef}
             type="text"
             className="block w-full rounded-xl border border-accents-2 bg-background py-2 pl-9 pr-10 text-sm placeholder:text-accents-4 focus:border-accents-5 focus:outline-none focus:ring-1 focus:ring-accents-5 transition-all hover:border-accents-4"
-            placeholder="Search projects..."
+            placeholder="Search projects"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
