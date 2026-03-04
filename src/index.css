@@ -10,7 +10,7 @@
 @theme {
   --font-sans: "Geist Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, monospace;
-  
+
   --color-background: var(--bg);
   --color-foreground: var(--fg);
   --color-accents-1: var(--accents-1);
@@ -35,6 +35,7 @@
     --accents-6: #444444;
     --accents-7: #333333;
     --accents-8: #111111;
+    --spotlight-color: rgba(100, 100, 255, 0.05);
   }
 
   .dark {
@@ -48,20 +49,334 @@
     --accents-6: #999999;
     --accents-7: #eaeaea;
     --accents-8: #fafafa;
+    --spotlight-color: rgba(120, 120, 255, 0.08);
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased transition-colors duration-200;
-    background-image: radial-gradient(var(--accents-3) 1px, transparent 1px);
+    @apply bg-background text-foreground font-sans antialiased;
+    background-image: radial-gradient(var(--accents-2) 1px, transparent 1px);
     background-size: 24px 24px;
     background-attachment: fixed;
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
-  
+
   ::selection {
     background-color: var(--fg);
     color: var(--bg);
   }
+
+  * {
+    box-sizing: border-box;
+  }
 }
+
+/* =====================================================
+   RGB / GRADIENT TEXT ANIMATIONS
+   ===================================================== */
+
+@keyframes rgb-cycle {
+  0%   { color: #e879f9; }
+  16%  { color: #818cf8; }
+  33%  { color: #38bdf8; }
+  50%  { color: #34d399; }
+  66%  { color: #fbbf24; }
+  83%  { color: #f87171; }
+  100% { color: #e879f9; }
+}
+
+@keyframes gradient-shift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.text-rgb {
+  animation: rgb-cycle 4s linear infinite;
+}
+
+.text-gradient-animated {
+  background: linear-gradient(
+    90deg,
+    #e879f9,
+    #818cf8,
+    #38bdf8,
+    #34d399,
+    #fbbf24,
+    #f87171,
+    #e879f9
+  );
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradient-shift 5s ease infinite;
+}
+
+/* =====================================================
+   SPOTLIGHT / GLOW HOVER EFFECT ON CARDS
+   ===================================================== */
+
+.spotlight-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.spotlight-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+    var(--spotlight-color),
+    transparent 60%
+  );
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.spotlight-card:hover::before {
+  opacity: 1;
+}
+
+/* =====================================================
+   GRADIENT BORDER EFFECT
+   ===================================================== */
+
+.gradient-border {
+  position: relative;
+}
+
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    #e879f9,
+    #818cf8,
+    #38bdf8,
+    #34d399
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.gradient-border:hover::before {
+  opacity: 1;
+}
+
+/* =====================================================
+   GLOW PULSE ON CARDS
+   ===================================================== */
+
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(129, 140, 248, 0); }
+  50%       { box-shadow: 0 0 20px 4px rgba(129, 140, 248, 0.15); }
+}
+
+.glow-on-hover:hover {
+  animation: glow-pulse 2s ease infinite;
+}
+
+/* =====================================================
+   ANIMATED BORDER TOP — Vercel card style
+   ===================================================== */
+
+.card-top-border {
+  position: relative;
+}
+
+.card-top-border::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  border-radius: 1px 1px 0 0;
+  background: linear-gradient(90deg, #818cf8, #38bdf8, #34d399);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.card-top-border:hover::after {
+  opacity: 1;
+}
+
+/* =====================================================
+   MARQUEE (skills ticker)
+   ===================================================== */
+
+@keyframes marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee 28s linear infinite;
+}
+
+.marquee-track:hover {
+  animation-play-state: paused;
+}
+
+/* =====================================================
+   SLIDE-UP TOAST ANIMATION
+   ===================================================== */
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* =====================================================
+   SHIMMER SKELETON LOADING
+   ===================================================== */
+
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--accents-1) 25%,
+    var(--accents-2) 50%,
+    var(--accents-1) 75%
+  );
+  background-size: 800px 100%;
+  animation: shimmer 1.8s ease-in-out infinite;
+}
+
+/* =====================================================
+   TYPING CURSOR BLINK
+   ===================================================== */
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+.cursor-blink {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background-color: currentColor;
+  margin-left: 1px;
+  vertical-align: text-bottom;
+  animation: blink 1s step-end infinite;
+}
+
+/* =====================================================
+   GRID HOVER HIGHLIGHT
+   ===================================================== */
+
+.grid-highlight-cell {
+  transition: background-color 0.15s ease;
+}
+
+.grid-highlight-cell:hover {
+  background-color: var(--accents-1);
+}
+
+/* =====================================================
+   LINK ANIMATED UNDERLINE
+   ===================================================== */
+
+.link-underline {
+  position: relative;
+}
+
+.link-underline::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background-color: currentColor;
+  transition: width 0.25s ease;
+}
+
+.link-underline:hover::after {
+  width: 100%;
+}
+
+/* =====================================================
+   SCALE HOVER
+   ===================================================== */
+
+.scale-on-hover {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.scale-on-hover:hover {
+  transform: translateY(-2px);
+}
+
+/* =====================================================
+   NOISE TEXTURE OVERLAY
+   ===================================================== */
+
+.noise-overlay {
+  position: relative;
+}
+
+.noise-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.025;
+  pointer-events: none;
+  border-radius: inherit;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+}
+
+/* =====================================================
+   BACK-TO-TOP BUTTON
+   ===================================================== */
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.2s ease forwards;
+}
+
+/* =====================================================
+   SCROLLBAR HIDE UTILITY
+   ===================================================== */
 
 @layer utilities {
   .scrollbar-hide::-webkit-scrollbar {
@@ -71,4 +386,91 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+}
+
+/* =====================================================
+   SECTION FADE-IN (supplemental)
+   ===================================================== */
+
+@keyframes section-in {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-section-in {
+  animation: section-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* =====================================================
+   PROGRESS BAR TRACK
+   ===================================================== */
+
+.progress-track {
+  background: linear-gradient(90deg, #818cf8, #38bdf8, #e879f9);
+  transition: width 0.05s linear;
+}
+
+/* =====================================================
+   STATUS DOT VARIANTS
+   ===================================================== */
+
+@keyframes pulse-green {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
+  50%       { box-shadow: 0 0 0 4px rgba(34, 197, 94, 0); }
+}
+
+.status-dot-available {
+  animation: pulse-green 2s ease infinite;
+}
+
+/* =====================================================
+   DEPLOY BUTTON SHIMMER
+   ===================================================== */
+
+@keyframes deploy-shimmer {
+  0%   { transform: translateX(-100%) skewX(-12deg); }
+  100% { transform: translateX(200%) skewX(-12deg); }
+}
+
+.deploy-btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.deploy-btn::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 40%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.15),
+    transparent
+  );
+  animation: deploy-shimmer 2.5s ease-in-out infinite;
+}
+
+/* =====================================================
+   CONTRIBUTION HEATMAP CELL
+   ===================================================== */
+
+.heat-cell {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  transition: transform 0.1s ease, opacity 0.1s ease;
+}
+
+.heat-cell:hover {
+  transform: scale(1.3);
+  opacity: 1 !important;
 }
