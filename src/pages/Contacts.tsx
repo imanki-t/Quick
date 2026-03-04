@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'motion/react';
 
 /* ─── IMPORTANT: Replace with your own Formspree form ID ─── */
 /* Go to https://formspree.io, create a free account, make a form, get your ID */
-const FORMSPREE_ENDPOINT = 'https://formspree.io/f/YOUR_FORM_ID';
+const FORMSPREE_ENDPOINT = 'https://formspree.io/f/mwvngrkl';
 
 const RedditIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 24 24" className={className} fill="currentColor">
