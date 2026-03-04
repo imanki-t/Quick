@@ -216,26 +216,59 @@ function ActivityIcon({ type }: { type: string }) {
   );
 }
 
-/* ─── Contribution heatmap ─── */
+/* ─── Contribution heatmap
+     Performance fix: replaced 182 individual <Tooltip> component instances
+     (each with their own state + event listeners) with a single shared tooltip
+     rendered at the container level. This eliminates ~364 useState/useRef calls
+     and drastically reduces the React reconciliation cost on scroll/hover.
+   ─── */
 function ContributionHeatmap() {
   const weeks = 26;
   const days = 7;
-  const cells = Array.from({ length: weeks * days }, (_, i) => {
-    const seed = (i * 31 + 17) % 100;
-    const level = seed < 40 ? 0 : seed < 60 ? 1 : seed < 80 ? 2 : seed < 92 ? 3 : 4;
-    return level;
-  });
+  const cells = React.useMemo(
+    () =>
+      Array.from({ length: weeks * days }, (_, i) => {
+        const seed = (i * 31 + 17) % 100;
+        return seed < 40 ? 0 : seed < 60 ? 1 : seed < 80 ? 2 : seed < 92 ? 3 : 4;
+      }),
+    []
+  );
 
   const bgMap = [
-    'bg-accents-2',
-    'bg-green-900/60 dark:bg-green-900',
-    'bg-green-700/70 dark:bg-green-700',
-    'bg-green-500/80 dark:bg-green-500',
-    'bg-green-400 dark:bg-green-400',
+    'bg-accents-2 opacity-40',
+    'bg-green-900/60',
+    'bg-green-700/70',
+    'bg-green-500/80',
+    'bg-green-400',
   ];
 
+  // Single shared tooltip state
+  const [tooltip, setTooltip] = useState<{ x: number; y: number; text: string } | null>(null);
+
+  const handleMouseEnter = useCallback((e: React.MouseEvent, level: number) => {
+    const text = level === 0 ? 'No contributions' : `${level} contribution${level !== 1 ? 's' : ''}`;
+    setTooltip({ x: e.clientX, y: e.clientY, text });
+  }, []);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    setTooltip((prev) => prev ? { ...prev, x: e.clientX, y: e.clientY } : null);
+  }, []);
+
   return (
-    <div className="overflow-x-auto scrollbar-hide">
+    <div
+      className="overflow-x-auto scrollbar-hide"
+      onMouseLeave={() => setTooltip(null)}
+    >
+      {/* Fixed-position tooltip rendered once for ALL cells */}
+      {tooltip && (
+        <div
+          className="fixed z-50 pointer-events-none rounded-md border border-accents-2 bg-accents-8 px-2.5 py-1 text-xs font-medium text-background shadow-lg"
+          style={{ left: tooltip.x + 12, top: tooltip.y - 32 }}
+        >
+          {tooltip.text}
+        </div>
+      )}
+
       <div
         className="grid gap-[3px]"
         style={{
@@ -245,9 +278,12 @@ function ContributionHeatmap() {
         }}
       >
         {cells.map((level, i) => (
-          <Tooltip key={i} content={`${level === 0 ? 'No' : level} contribution${level !== 1 ? 's' : ''}`} side="top" delay={0}>
-            <div className={`heat-cell ${bgMap[level]} opacity-${level === 0 ? '40' : '100'}`} />
-          </Tooltip>
+          <div
+            key={i}
+            className={`heat-cell ${bgMap[level]}`}
+            onMouseEnter={(e) => handleMouseEnter(e, level)}
+            onMouseMove={handleMouseMove}
+          />
         ))}
       </div>
     </div>
@@ -480,20 +516,34 @@ function GitHubProfileCard({ user }: { user: GitHubUser }) {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true });
   const followers = useCountUp(user.followers, 1200, 0, inView);
-  const following = useCountUp(user.following, 1000, 0, inView);
-  const repos = useCountUp(user.public_repos, 1000, 0, inView);
+  const following  = useCountUp(user.following, 1000, 0, inView);
+  const repos      = useCountUp(user.public_repos, 1000, 0, inView);
   return (
     <motion.div ref={ref} initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
       className="rounded-xl border border-accents-2 bg-background p-5">
       <div className="flex items-center gap-3 mb-4">
-        {user.avatar_url && <img src={user.avatar_url} alt={user.login} className="h-10 w-10 rounded-full border-2 border-accents-2" />}
+        {user.avatar_url && (
+          <img
+            src={user.avatar_url}
+            alt={user.login}
+            loading="lazy"
+            decoding="async"
+            width={40}
+            height={40}
+            className="h-10 w-10 rounded-full border-2 border-accents-2"
+          />
+        )}
         <div>
           <p className="text-sm font-semibold">{user.name || user.login}</p>
           <a href={user.html_url} target="_blank" rel="noopener noreferrer" className="text-xs text-accents-5 hover:text-foreground transition-colors">@{user.login}</a>
         </div>
       </div>
       <div className="grid grid-cols-3 gap-2 border-t border-accents-2 pt-4">
-        {[{ icon: <Users className="h-3.5 w-3.5" />, value: followers, label: 'followers' }, { icon: <Users className="h-3.5 w-3.5" />, value: following, label: 'following' }, { icon: <Code2 className="h-3.5 w-3.5" />, value: repos, label: 'repos' }].map((s) => (
+        {[
+          { icon: <Users className="h-3.5 w-3.5" />, value: followers, label: 'followers' },
+          { icon: <Users className="h-3.5 w-3.5" />, value: following, label: 'following' },
+          { icon: <Code2 className="h-3.5 w-3.5" />, value: repos, label: 'repos' },
+        ].map((s) => (
           <div key={s.label} className="flex flex-col items-center gap-1 text-center">
             <span className="text-accents-5">{s.icon}</span>
             <span className="font-mono text-lg font-bold">{s.value}</span>
@@ -510,7 +560,7 @@ function StreakCard({ streak }: { streak: StreakData }) {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true });
   const current = useCountUp(streak.currentStreak, 800, 0, inView);
-  const longest = useCountUp(streak.longestStreak, 1000, 0, inView);
+  const longest  = useCountUp(streak.longestStreak, 1000, 0, inView);
   return (
     <motion.div ref={ref} initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
       className="rounded-xl border border-accents-2 bg-background p-5">
@@ -620,30 +670,24 @@ export function Home() {
 
       <div className="mx-auto max-w-5xl px-6 py-12 md:py-20">
 
-        {/* ══════════════════════════════════════════
-            01 · HERO — dotted bg, aurora, code deco
-           ══════════════════════════════════════════ */}
+        {/* 01 · HERO */}
         <motion.section
           initial={{ opacity: 0, y: 32 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
           className="mb-24 pt-8 relative"
         >
-          {/* Dotted background scoped to hero */}
           <div className="absolute inset-0 -inset-x-6 rounded-3xl overflow-hidden pointer-events-none">
             <HeroDottedBg />
           </div>
 
-          {/* Aurora glow blobs */}
           <div aria-hidden className="pointer-events-none absolute -top-24 -left-12 h-72 w-72 rounded-full blur-3xl opacity-[0.12]"
             style={{ background: 'radial-gradient(circle, #818cf8 0%, #38bdf8 50%, transparent 70%)' }} />
           <div aria-hidden className="pointer-events-none absolute top-16 -right-8 h-48 w-48 rounded-full blur-3xl opacity-[0.08]"
             style={{ background: 'radial-gradient(circle, #e879f9 0%, transparent 70%)' }} />
 
-          {/* Floating code decoration */}
           <CodeDecoration />
 
-          {/* Main heading */}
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -661,7 +705,6 @@ export function Home() {
             </span>
           </motion.h1>
 
-          {/* Tagline */}
           <motion.p
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
@@ -672,7 +715,6 @@ export function Home() {
             I love vibe coding, open source, and turning ideas into working software.
           </motion.p>
 
-          {/* CTA buttons */}
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
@@ -703,7 +745,6 @@ export function Home() {
             </Link>
           </motion.div>
 
-          {/* Copy email — new utility element */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -765,9 +806,7 @@ export function Home() {
 
         <SectionDivider label="about" />
 
-        {/* ══════════════════════════════════════════
-            03 · ABOUT / PHILOSOPHY
-           ══════════════════════════════════════════ */}
+        {/* 05 · PHILOSOPHY */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -775,7 +814,7 @@ export function Home() {
           transition={{ duration: 0.6 }}
           className="mb-24"
         >
-          <SectionHeading number="03" title="Philosophy" />
+          <SectionHeading number="05" title="Philosophy" />
           <div className="grid md:grid-cols-2 border border-accents-2 rounded-xl overflow-hidden">
             <div className="flex flex-col justify-center p-8 md:p-10 border-b md:border-b-0 md:border-r border-accents-2 bg-background transition-colors hover:bg-accents-1/50 noise-overlay">
               <div className="mb-3 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-accents-4">
@@ -808,12 +847,10 @@ export function Home() {
                   <span className="text-sm font-semibold tracking-tight">Currently exploring</span>
                 </div>
                 <div className="flex gap-2 flex-wrap">
-                  {/* Rust badge with SVG icon */}
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-500/10 border border-orange-500/20 px-2.5 py-1 text-[11px] font-medium text-orange-400">
                     <RustIcon className="w-3 h-3" />
                     Rust
                   </span>
-                  {/* WASM badge with SVG icon */}
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 px-2.5 py-1 text-[11px] font-medium text-blue-400">
                     <WasmIcon className="w-3 h-3" />
                     WASM
@@ -827,9 +864,7 @@ export function Home() {
 
         <SectionDivider label="skills" />
 
-        {/* ══════════════════════════════════════════
-            04 · SKILLS
-           ══════════════════════════════════════════ */}
+        {/* 06 · SKILLS */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -838,11 +873,10 @@ export function Home() {
           className="mb-24"
         >
           <div className="mb-8 flex items-center justify-between">
-            <SectionHeading number="04" title="Core Technologies" />
+            <SectionHeading number="06" title="Core Technologies" />
             <span className="text-xs text-accents-4 font-mono mb-8">{SKILLS.length} skills</span>
           </div>
 
-          {/* Skill level legend */}
           <div className="mb-4 flex items-center gap-4 text-[10px] font-medium">
             {Object.entries(levelColors).map(([level, color]) => (
               <span key={level} className="flex items-center gap-1">
@@ -852,7 +886,6 @@ export function Home() {
             ))}
           </div>
 
-          {/* Grid view */}
           <div
             ref={gridRef}
             className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 border-t border-l border-accents-2 spotlight-card"
@@ -878,14 +911,12 @@ export function Home() {
                   <span className="text-xs font-medium text-accents-5 group-hover:text-foreground transition-colors">
                     {skill.name}
                   </span>
-                  {/* Level dot indicator */}
                   <span className={`h-1 w-1 rounded-full ${levelColors[skill.level].replace('text-', 'bg-')}`} />
                 </div>
               </motion.div>
             ))}
           </div>
 
-          {/* Marquee ticker */}
           <div className="mt-6 overflow-hidden border border-accents-2 rounded-xl bg-accents-1/30 py-3">
             <div className="marquee-track">
               {[...SKILLS, ...SKILLS].map((skill, i) => (
@@ -900,9 +931,7 @@ export function Home() {
 
         <SectionDivider label="journey" />
 
-        {/* ══════════════════════════════════════════
-            05 · JOURNEY
-           ══════════════════════════════════════════ */}
+        {/* 07 · JOURNEY */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -910,10 +939,9 @@ export function Home() {
           transition={{ duration: 0.5 }}
           className="mb-24"
         >
-          <SectionHeading number="05" title="My Journey" subtitle="From zero lines of code to shipping real things." />
+          <SectionHeading number="07" title="My Journey" subtitle="From zero lines of code to shipping real things." />
 
           <div className="relative">
-            {/* Vertical connector line */}
             <div className="absolute left-[22px] top-0 bottom-0 w-px bg-gradient-to-b from-accents-2 via-accents-3 to-transparent hidden sm:block" />
 
             <div className="flex flex-col gap-0">
@@ -926,7 +954,6 @@ export function Home() {
                   transition={{ duration: 0.5, delay: idx * 0.1 }}
                   className="group relative flex gap-5 pb-8"
                 >
-                  {/* Icon dot with pulsing accent */}
                   <div
                     className={`relative z-10 mt-1 hidden sm:flex h-11 w-11 shrink-0 items-center justify-center rounded-full border ${item.accentColor} bg-background transition-all group-hover:border-accents-5 ${item.color}`}
                   >
@@ -936,7 +963,6 @@ export function Home() {
                     )}
                   </div>
 
-                  {/* Content */}
                   <div className={`flex-1 rounded-xl border bg-background p-5 transition-all hover:border-accents-4 hover:bg-accents-1/50 card-top-border ${item.accentColor}`}>
                     <div className="mb-2 flex flex-wrap items-center gap-3">
                       <span className="font-mono text-xs text-accents-4">{item.period}</span>
@@ -959,9 +985,7 @@ export function Home() {
 
         <SectionDivider label="activity" />
 
-        {/* ══════════════════════════════════════════
-            06 · CONTRIBUTION HEATMAP
-           ══════════════════════════════════════════ */}
+        {/* 08 · CONTRIBUTION HEATMAP */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -970,7 +994,7 @@ export function Home() {
           className="mb-16"
         >
           <div className="mb-5 flex items-center justify-between">
-            <SectionHeading number="06" title="Contribution Activity" />
+            <SectionHeading number="08" title="Contribution Activity" />
             <span className="flex items-center gap-1.5 text-xs text-accents-5 mb-8">
               <span className="h-2 w-2 rounded-sm bg-green-500" />
               200+ contributions in 6 months
@@ -980,7 +1004,7 @@ export function Home() {
             <ContributionHeatmap />
             <div className="mt-3 flex items-center justify-end gap-1.5 text-[10px] text-accents-4">
               <span>Less</span>
-              {['bg-accents-2', 'bg-green-900/60', 'bg-green-700/70', 'bg-green-500/80', 'bg-green-400'].map((c, i) => (
+              {['bg-accents-2 opacity-40', 'bg-green-900/60', 'bg-green-700/70', 'bg-green-500/80', 'bg-green-400'].map((c, i) => (
                 <span key={i} className={`heat-cell ${c}`} />
               ))}
               <span>More</span>
@@ -988,9 +1012,7 @@ export function Home() {
           </div>
         </motion.section>
 
-        {/* ══════════════════════════════════════════
-            07 · REAL ACTIVITY FEED
-           ══════════════════════════════════════════ */}
+        {/* 09 · REAL ACTIVITY FEED */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -1001,7 +1023,7 @@ export function Home() {
           <div className="mb-5 flex items-center justify-between">
             <h3 className="text-base font-semibold tracking-tight text-accents-5 ml-7">Recent Activity</h3>
             <a
-              href={`https://github.com/${`imanki-t`}`}
+              href="https://github.com/imanki-t"
               target="_blank"
               rel="noopener noreferrer"
               className="group flex items-center text-xs font-medium text-accents-5 transition-colors hover:text-foreground"
@@ -1060,9 +1082,7 @@ export function Home() {
 
         <SectionDivider label="work" />
 
-        {/* ══════════════════════════════════════════
-            08 · FEATURED WORK
-           ══════════════════════════════════════════ */}
+        {/* 10 · FEATURED WORK */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -1070,7 +1090,7 @@ export function Home() {
           transition={{ duration: 0.5 }}
         >
           <div className="mb-6 flex items-center justify-between">
-            <SectionHeading number="08" title="Featured Work" />
+            <SectionHeading number="10" title="Featured Work" />
             <Link
               to="/projects"
               className="group flex items-center text-sm font-medium text-accents-5 transition-colors hover:text-foreground mb-8"
@@ -1080,7 +1100,6 @@ export function Home() {
             </Link>
           </div>
 
-          {/* Most starred spotlight card */}
           {mostStarred && !loading && <MostStarredCard repo={mostStarred} />}
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -1112,7 +1131,6 @@ export function Home() {
                             </div>
                             <h3 className="font-semibold tracking-tight">{repo.name}</h3>
                           </div>
-                          {/* "New" badge for recently updated repos */}
                           {isNew && (
                             <span className="rounded-full bg-green-500/10 border border-green-500/20 px-2 py-0.5 text-[10px] font-semibold text-green-400 uppercase tracking-wide">
                               New
@@ -1127,7 +1145,7 @@ export function Home() {
                         {repo.language && (
                           <span className="flex items-center gap-1.5 font-medium">
                             <span className="h-2 w-2 rounded-full" style={{
-                              backgroundColor: repo.language === 'TypeScript' ? '#3178c6' : repo.language === 'JavaScript' ? '#f1e05a' : repo.language === 'Rust' ? '#dea584' : '#888',
+                              backgroundColor: getLangColor(repo.language),
                             }} />
                             {repo.language}
                           </span>
@@ -1148,9 +1166,7 @@ export function Home() {
           </div>
         </motion.section>
 
-        {/* ══════════════════════════════════════════
-            CTA BAND
-           ══════════════════════════════════════════ */}
+        {/* CTA BAND */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -1181,9 +1197,7 @@ export function Home() {
           </div>
         </motion.section>
 
-        {/* ══════════════════════════════════════════
-            AVAILABILITY BADGE — moved to bottom
-           ══════════════════════════════════════════ */}
+        {/* AVAILABILITY BADGE */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           whileInView={{ opacity: 1, y: 0 }}
