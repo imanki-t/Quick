@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Github, Mail, ArrowLeft, Send, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 
 const FORMSPREE_ENDPOINT = 'https://formspree.io/f/mwvngrkl';
 
-// 👇 Replace with your actual reCAPTCHA v2 site key from https://www.google.com/recaptcha/admin
-const RECAPTCHA_SITE_KEY = 'YOUR_RECAPTCHA_SITE_KEY';
+// 👇 Replace with your reCAPTCHA v3 site key from https://www.google.com/recaptcha/admin
+const RECAPTCHA_SITE_KEY = 'YOUR_RECAPTCHA_V3_SITE_KEY';
 
 declare global {
   interface Window {
@@ -46,6 +46,41 @@ const SOCIAL_LINKS = [
 ];
 
 type FormStatus = 'idle' | 'loading' | 'success' | 'error';
+
+/* ─── Load reCAPTCHA v3 script ─── */
+function useRecaptchaV3() {
+  useEffect(() => {
+    if (document.getElementById('recaptcha-script')) return;
+    const script = document.createElement('script');
+    script.id = 'recaptcha-script';
+    script.src = `https://www.google.com/recaptcha/api.js?render=${RECAPTCHA_SITE_KEY}`;
+    script.async = true;
+    script.defer = true;
+    document.head.appendChild(script);
+  }, []);
+
+  const getToken = (action: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const attempt = (retries: number) => {
+        if (window.grecaptcha?.ready) {
+          window.grecaptcha.ready(() => {
+            window.grecaptcha
+              .execute(RECAPTCHA_SITE_KEY, { action })
+              .then(resolve)
+              .catch(reject);
+          });
+        } else if (retries > 0) {
+          setTimeout(() => attempt(retries - 1), 200);
+        } else {
+          reject(new Error('reCAPTCHA not loaded'));
+        }
+      };
+      attempt(20);
+    });
+  };
+
+  return { getToken };
+}
 
 /* ─── Floating label input ─── */
 function Field({
@@ -103,66 +138,21 @@ function Field({
   );
 }
 
-/* ─── reCAPTCHA widget ─── */
-function RecaptchaWidget({ onVerify }: { onVerify: (token: string | null) => void }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const widgetIdRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    // Load reCAPTCHA script if not already loaded
-    if (!document.getElementById('recaptcha-script')) {
-      const script = document.createElement('script');
-      script.id = 'recaptcha-script';
-      script.src = 'https://www.google.com/recaptcha/api.js?render=explicit';
-      script.async = true;
-      script.defer = true;
-      document.head.appendChild(script);
-    }
-
-    // Poll until grecaptcha is ready, then render
-    const interval = setInterval(() => {
-      if (window.grecaptcha?.render && containerRef.current && widgetIdRef.current === null) {
-        clearInterval(interval);
-        widgetIdRef.current = window.grecaptcha.render(containerRef.current, {
-          sitekey: RECAPTCHA_SITE_KEY,
-          theme: document.documentElement.classList.contains('dark') ? 'dark' : 'light',
-          callback: (token: string) => onVerify(token),
-          'expired-callback': () => onVerify(null),
-          'error-callback': () => onVerify(null),
-        });
-      }
-    }, 100);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  return (
-    <div className="flex justify-center py-1">
-      <div ref={containerRef} />
-    </div>
-  );
-}
-
 export function Contacts() {
   const [status, setStatus] = useState<FormStatus>('idle');
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-  const [captchaError, setCaptchaError] = useState(false);
+  const { getToken } = useRecaptchaV3();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
-    if (!captchaToken) {
-      setCaptchaError(true);
-      return;
-    }
-
-    setCaptchaError(false);
     setStatus('loading');
 
     try {
+      // Get v3 token invisibly — no user interaction needed
+      const token = await getToken('contact_form');
+
       const form = e.currentTarget;
       const data = new FormData(form);
-      data.append('g-recaptcha-response', captchaToken);
+      data.append('g-recaptcha-response', token);
 
       const res = await fetch(FORMSPREE_ENDPOINT, {
         method: 'POST',
@@ -173,14 +163,13 @@ export function Contacts() {
       if (res.ok) {
         setStatus('success');
         form.reset();
-        setCaptchaToken(null);
-        if (window.grecaptcha) window.grecaptcha.reset();
       } else {
         const body = await res.json();
         console.error('Formspree error:', res.status, body);
         setStatus('error');
       }
-    } catch {
+    } catch (err) {
+      console.error('Submission error:', err);
       setStatus('error');
     }
 
@@ -295,16 +284,6 @@ export function Contacts() {
                   {/* Hidden honeypot for spam */}
                   <input type="text" name="_gotcha" className="hidden" />
 
-                  {/* reCAPTCHA widget */}
-                  <RecaptchaWidget onVerify={setCaptchaToken} />
-
-                  {captchaError && (
-                    <div className="flex items-center gap-2 rounded-lg border border-yellow-500/20 bg-yellow-500/10 px-3 py-2">
-                      <AlertCircle className="h-4 w-4 text-yellow-400 shrink-0" />
-                      <p className="text-xs text-yellow-400">Please complete the CAPTCHA before sending.</p>
-                    </div>
-                  )}
-
                   {status === 'error' && (
                     <div className="flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2">
                       <AlertCircle className="h-4 w-4 text-red-400 shrink-0" />
@@ -330,8 +309,12 @@ export function Contacts() {
                     )}
                   </button>
 
+                  {/* Required reCAPTCHA v3 branding */}
                   <p className="text-center text-[10px] text-accents-4">
-                    Your message goes directly to my inbox. No newsletters, no spam.
+                    Protected by reCAPTCHA —{' '}
+                    <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:text-accents-5">Privacy</a>
+                    {' & '}
+                    <a href="https://policies.google.com/terms" target="_blank" rel="noopener noreferrer" className="underline hover:text-accents-5">Terms</a>
                   </p>
                 </motion.form>
               )}
