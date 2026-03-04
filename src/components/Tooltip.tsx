@@ -1,41 +1,63 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useLayoutEffect, ReactNode } from 'react';
+import { cn } from '../utils/cn';
 
 interface TooltipProps {
-  content: string;
-  children: React.ReactElement;
-  side?: 'top' | 'bottom' | 'left' | 'right';
-  delay?: number;
+  children: ReactNode;
+  content: ReactNode;
+  className?: string;
 }
 
-export function Tooltip({ content, children, side = 'top', delay = 300 }: TooltipProps) {
-  const [visible, setVisible] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+export function Tooltip({ children, content, className }: TooltipProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const tooltipRef = useRef<HTMLDivElement>(null);
 
-  const show = () => {
-    timerRef.current = setTimeout(() => setVisible(true), delay);
-  };
-  const hide = () => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    setVisible(false);
-  };
+  useLayoutEffect(() => {
+    if (isOpen && tooltipRef.current) {
+      const padding = 12; // Safety margin from screen edge
+      
+      // Reset position first to get natural coordinates
+      tooltipRef.current.style.left = '50%';
+      tooltipRef.current.style.right = 'auto';
+      tooltipRef.current.style.transform = 'translateX(-50%)';
 
-  const positionClasses = {
-    top: 'bottom-full left-1/2 -translate-x-1/2 mb-2',
-    bottom: 'top-full left-1/2 -translate-x-1/2 mt-2',
-    left: 'right-full top-1/2 -translate-y-1/2 mr-2',
-    right: 'left-full top-1/2 -translate-y-1/2 ml-2',
-  };
+      const rect = tooltipRef.current.getBoundingClientRect();
+
+      // Adjust if overflowing the right edge
+      if (rect.right > window.innerWidth - padding) {
+        tooltipRef.current.style.left = 'auto';
+        tooltipRef.current.style.right = '0';
+        tooltipRef.current.style.transform = 'none';
+      } 
+      // Adjust if overflowing the left edge
+      else if (rect.left < padding) {
+        tooltipRef.current.style.left = '0';
+        tooltipRef.current.style.right = 'auto';
+        tooltipRef.current.style.transform = 'none';
+      }
+    }
+  }, [isOpen]);
 
   return (
-    <span className="relative inline-flex" onMouseEnter={show} onMouseLeave={hide}>
+    <div
+      className="relative flex items-center justify-center cursor-pointer"
+      onMouseEnter={() => setIsOpen(true)}
+      onMouseLeave={() => setIsOpen(false)}
+      onClick={() => setIsOpen(!isOpen)}
+    >
       {children}
-      {visible && (
-        <span
-          className={`absolute z-50 whitespace-nowrap rounded-md border border-accents-2 bg-accents-8 px-2.5 py-1 text-xs font-medium text-background pointer-events-none shadow-lg animate-in fade-in zoom-in-95 duration-100 ${positionClasses[side]}`}
+      {isOpen && (
+        <div
+          ref={tooltipRef}
+          className={cn(
+            "absolute bottom-full mb-2 z-50 w-max max-w-[90vw] whitespace-normal rounded-md bg-zinc-900 px-2.5 py-1.5 text-xs text-zinc-100 shadow-md dark:bg-zinc-100 dark:text-zinc-900",
+            className
+          )}
         >
           {content}
-        </span>
+        </div>
       )}
-    </span>
+    </div>
   );
 }
+
+export default Tooltip;
